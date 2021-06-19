@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>Mouse Stalker</title>
+
+<body>
+
+<script>
+
+const freeze = document.body.appendChild(document.createElement("button"));
+let isFreezed = false;
+freeze.innerText = "freeze";
+freeze.addEventListener("click",()=>{
+  isFreezed = (isFreezed) ? false:true;
+});
+
+
+class P2{
+  constructor(x=0,y=0){
+    this.x=x;
+    this.y=y;
+    //下のメッセージは、ほっといても無限に表示
+    //console.log("hi,I'm New P2");
+  }
+  get clone(){return new P2(this.x,this.y)}//複写
+  add({x=0,y=0},{x:X,y:Y}=this){this.x=X+x;this.y=Y+y;return this}//加算
+  sub({x=0,y=0},{x:X,y:Y}=this){this.x=X-x;this.y=Y-y;return this}//減算
+  mul({x=0,y=0},{x:X,y:Y}=this){this.x=X*x;this.y=Y*y;return this}//乗算
+  div({x=0,y=0},{x:X,y:Y}=this){this.x=X/x;this.y=Y/y;return this}//除算
+  sMul(n=0,{x:X,y:Y}=this){this.x=X*n;this.y=Y*n;return this}//スカラー倍
+
+}
+//__
+
+//追いかける素となるもの（マウスの座標）
+class MousePointer extends P2 {
+  constructor (x, y) {
+    super (x, y);
+  }
+
+  handleEvent (event) {
+    //下のaddEventlistnerに設定したイベント毎に呼び出される
+    //console.log("handleEvent")
+    //これを消すと左右の座標移動がなくなる
+    this.x = event.clientX + window.pageXOffset;
+    //これを消すと上下の座標移動がなくなる
+    this.y = event.clientY + window.pageYOffset;
+  }
+
+  static create (view = document) {
+    let obj = new this ();
+    //objをobj.handleEventにすると動かなくなる
+    view.addEventListener ('mousemove', obj, false);
+    //console.log(obj);
+    return obj;
+  }
+}
+
+//__
+//追いかけるもの
+class Stalker extends P2 {
+  constructor (target, images, pointer, option = {}) {
+    super (pointer.x, pointer.y);
+    this.target   = target;
+    this.images   = images;
+    this.pointer  = pointer;
+    this.option   = Object.assign ({}, this.constructor.getDefaultOption (), option);
+    this.disabled = false;
+    //このメッセージは最初のpointer経ちを定義した一度きりしか出ない
+    console.log("hi I'm new Stalker");
+    this.chase ();
+  }
+
+
+  chase () {
+
+    const { PI, floor:int } = Math;
+    //これはなくなっても特に何も起こらない
+    if (this.disabled) return;
+    let
+      dp = this.pointer.clone.sub (this),
+      //これもいじくるとエラー//Cannot read property 'src' of undefined at Stalker.chase
+      n = 360 / this.images.length,
+      //PIを2*PIに変えたら右下向きで開始して回すと滅茶苦茶回転した挙句、エラー発生//Uncaught TypeError: Cannot read property 'src' of undefined at Stalker.chase
+      ang = Math.atan2 (dp.x, -dp.y) * 180 / PI;
+    //これを消すとstalker達の座標が(0,0)のまま変わらない。
+    this.add (dp.sMul (this.option.accelerator));
+    //console.log(dp)
+    //これを消すと矢印の画像がついて来なくなる。(ただし、stalkerオブジェクトそのものの座標は更新されている)
+    this.locate ();
+    //これを消すと矢印の向きが変わらなくなる(つまり、向きを帰るのに必要)
+    this.target.src = this.images[int ((360 + ang) % 360 / n)].src;
+    const requestId = requestAnimationFrame (this.chase.bind (this));
+    //これを追加すると、フリーズボタンを押すと、画像も座標移動も停止
+    if(isFreezed) window.cancelAnimationFrame(requestId);
+  }
+
+  rotate(){
+
+  }
+
+
+  locate () {
+    const int = Math.floor;
+    let p = this.option.offset.clone.add (this);
+    Object.assign (this.target.style, { left: int (p.x) + 'px', top: int (p.y) + 'px'});
+    return this;
+  }
+
+
+  static getDefaultOption () {
+    //これも最初のみ
+    //console.log("hi,i'm getDefaultOption")
+    return {
+      offset: new P2 (0, 0),
+      accelerator: .9
+    };
+  }
+
+
+  static create (imageList, pointer, option = { }) {
+    let
+      //Stalkerの数(7コ)だけdivが作られている
+      div = document.createElement ('div'),
+      target = new Image,
+      //leftとtopを変えると、マウスとの距離が代わる
+      style = {position: 'absolute', left: '0px', top: '0px'},
+      images = imageList.map (src=> Object.assign (new Image, {src}));
+
+    //数字を0~7のどれにしても変わらない
+    target.src = images[0].src;
+    //これは消しても特に何もない
+    Object.assign (div.style, style);
+    //これを消すと、ストーカーが初期位置で固まる
+    Object.assign (target.style, style);
+    document.body.appendChild (div).appendChild (target);
+    //これも始めの一回キリ
+    console.log("about to return new Stalker (target, images, pointer, option)")
+
+    return new Stalker (target, images, pointer, option);
+  }
+}
+
+//__
+
+const src = [
+  'data:image/gif;base64,R0lGODlhIAAgAJEAAPwAAYcAAf///wAAACH5BAEAAAIALAAAAAAgACAAAAJklI+py33gYgsAymsCrVjqzXXMB4YiQpbmmaor1rpvFMvzWFf6bjm1xgv6frYdjhhMKoifpJKWerKiwpOgJRVhq1NStrPlWa9UsTVsPJfT3SZXu9aN0XK19w2O3zz6HvxuNiZYAAA7',
+  'data:image/gif;base64,R0lGODlhIAAgAJEAAPwAAYcAAf///wAAACH5BAEAAAIALAAAAAAgACAAAAJklI+py+0Po5xUhIuzziDuz3UeuAHmRIYnmppuRbovBcqzVNvrWOr7k/OJgB/hrRE0EnvGnyLZRBabMgbUJsA+p8JDdauJIo6IsFLhLF/Ei+EiwK4YzvKxrt7+4tHpvdcPGChRAAA7',
+  'data:image/gif;base64,R0lGODlhIAAgAJEAAPwAAYcAAf///wAAACH5BAEAAAIALAAAAAAgACAAAAJXlI+py+0Po2Rh2lBtxFk73nkLGIoIWZoCmh7sC1PwTI70jSn4nuy868MdAMSi8YhMEg3KpnPJfEqNiKk1YZUqss4FV6kaIsNiKjlaPJcB6nJb/B7G56oCADs=',
+  'data:image/gif;base64,R0lGODlhIAAgAJEAAPwAAYcAAf///wAAACH5BAEAAAIALAAAAAAgACAAAAJjlI+py+0Po5zUhFDhvbnt3SnfFx4AMILheaacx7Csiy1vIsu0eJu57kKQFD9gyjIkFlu0UWPJbPaUS+mUWrRCoKhmhOv9QncS8HFiTpbH6i23e32+o+s5U2yfufOykv8P6FAAADs=',
+  'data:image/gif;base64,R0lGODlhIAAgAJEAAPwAAYcAAf///wAAACH5BAEAAAIALAAAAAAgACAAAAJnlI+pywkPQZi02QhptQw/PXGdBwbi4kngqaQl65ArfLgzLdgabugb7gvxgqahbGfEvJKRJfD4a6SIpSJiqqwiW9iPVjjCfq1SsZZldp6mVWbm9mxueTk5mN57k/F5FR8l8dchSChQAAA7',
+  'data:image/gif;base64,R0lGODlhIAAgAJEAAPwAAYcAAf///wAAACH5BAEAAAIALAAAAAAgACAAAAJmlI+py+0PE4j0gFvj3dnt3y3fGCLjGHjN+QXuOins5tYMZ85AzYu4oNvxbDJQcEgsBmnI1G15aTqfS+kDar0emxpdFuLlUmbfLkpcOUmn49aaDWa+4Z7oPKm9DzV6ZOkPGCg4yFAAADs=',
+  'data:image/gif;base64,R0lGODlhIAAgAJEAAPwAAYcAAf///wAAACH5BAEAAAIALAAAAAAgACAAAAJXlI+py+0PAZwJSErtxU9vzngfWInkIlpnmbbuaLxyqsy2xt4zoutH7xMAg4KA8YhMKpcBBPMJbTqj1KOiWl1go4zts7FcXZPisbWcQKLN63H7+o7L54cCADs=',
+  'data:image/gif;base64,R0lGODlhIAAgAJEAAPwAAYcAAf///wAAACH5BAEAAAIALAAAAAAgACAAAAJflI+py+0PYwO02nthwDzr3XFSQIZeRJYmIBmp2rXuC8YtDYsjXusfb0LxcpjfMOgYvpAM5TLUcD5tCtoMx0S8tEBoIlXtFsNNcaWZNMu+3XUY517A43IwvXzP6/d8fQEAOw=='
+];
+
+let
+  pointer0 = MousePointer.create (),
+  pointer1 = Stalker.create (src, pointer0, {offset: new P2(20,20), accelerator: .1}),
+  pointer2 = Stalker.create (src, pointer1, {offset: new P2(40,40), accelerator: .09}),
+  pointer3 = Stalker.create (src, pointer2, {offset: new P2(60,60), accelerator: .08});
+  pointer4 = Stalker.create (src, pointer3, {offset: new P2(80,80), accelerator: .07});
+  pointer5 = Stalker.create (src, pointer4, {offset: new P2(100,100), accelerator: .06});
+  pointer6 = Stalker.create (src, pointer5, {offset: new P2(120,120), accelerator: .05});
+  pointer7 = Stalker.create (src, pointer6, {offset: new P2(140,140), accelerator: .04});
+
+</script>
+</body>

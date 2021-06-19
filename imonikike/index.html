@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head></head>
+<body>
+<canvas id="canvas" width="500" height="500"
+style="border:1px solid blue; touch-action:none;"></canvas>
+<script>
+var states = []; // 各ポインタの状態
+var ctx; // canvasのコンテキスト
+window.addEventListener('load', function () {
+var canvas_elem = document.getElementById('canvas');
+ctx = canvas_elem.getContext('2d');
+if ('PointerEvent' in window) {
+canvas_elem.addEventListener('pointerdown', pointerdown_handler);
+canvas_elem.addEventListener('pointermove', pointermove_handler); canvas_elem.addEventListener('pointerup', pointerup_handler);
+canvas_elem.addEventListener('pointercancel', pointercancel_handler);
+
+} else {
+if ('TouchEvent' in window) {
+canvas_elem.addEventListener('touchstart', touchstart_handler);
+canvas_elem.addEventListener('touchmove', touchmove_handler);
+canvas_elem.addEventListener('touchend', touchend_handler);
+canvas_elem.addEventListener('touchcancel', touchcancel_handler);
+}
+canvas_elem.addEventListener('mousedown', mousedown_handler);
+canvas_elem.addEventListener('mousemove', mousemove_handler);
+canvas_elem.addEventListener('mouseup', mouseup_handler);
+}
+});
+// ============================================
+// Pointer Events
+function pointerdown_handler(event) {
+down(event);
+}
+function pointermove_handler(event) {
+move(event);
+}
+function pointerup_handler(event) {
+up(event);
+}
+function pointercancel_handler(event) {
+cancel(event);
+}
+// ============================================
+// Touch Events
+function touchstart_handler(event) {
+var touches = event.changedTouches;
+for (var i = 0; i < touches.length; i++) {
+down(new TouchEventAdapter(touches[i], event));
+}
+}
+function touchmove_handler(event) {
+var touches = event.changedTouches;
+for (var i = 0; i < touches.length; i++) {
+move(new TouchEventAdapter(touches[i], event));
+}
+}
+function touchend_handler(event) {
+var touches = event.changedTouches;
+for (var i = 0; i < touches.length; i++) {
+up(new TouchEventAdapter(touches[i], event));
+}
+}
+function touchcancel_handler(event) {
+var touches = event.changedTouches;
+for (var i = 0; i < touches.length; i++) {
+
+cancel(new TouchEventAdapter(touches[i], event));
+}
+}
+class TouchEventAdapter {
+constructor(touch, event) {
+this.orgTouch = touch;
+this.orgEvent = event;
+var rect = event.target.getBoundingClientRect();
+this.elemX = rect.left;
+this.elemY = rect.top;
+}
+get pointerId() { return this.orgTouch.identifier; }
+get offsetX() { return this.orgTouch.pageX - this.elemX; }
+get offsetY() { return this.orgTouch.pageY - this.elemY; }
+preventDefault() { return this.orgEvent.preventDefault(); }
+}
+// ============================================
+// マウスイベント
+function mousedown_handler(event) {
+down(new MouseEventAdapter(event));
+}
+function mousemove_handler(event) {
+move(new MouseEventAdapter(event));
+}
+function mouseup_handler(event) {
+up(new MouseEventAdapter(event));
+}
+class MouseEventAdapter {
+constructor(event) {
+this.orgEvent = event;
+}
+get pointerId() { return "mouse"; }
+get offsetX() { return this.orgEvent.offsetX; }
+get offsetY() { return this.orgEvent.offsetY; }
+preventDefault() { return this.orgEvent.preventDefault(); }
+}
+// ============================================
+// 共通処理
+function down(event) {
+states[event.pointerId] = { started: true, x: event.offsetX, y: event.offsetY };
+event.preventDefault();
+}
+function move(event) {
+var current_state = states[event.pointerId];
+if (current_state && current_state.started) {
+ctx.beginPath();
+ctx.moveTo(current_state.x, current_state.y);
+
+ctx.lineTo(event.offsetX, event.offsetY);
+ctx.stroke();
+current_state.x = event.offsetX;
+current_state.y = event.offsetY;
+event.preventDefault();
+}
+}
+function up(event) {
+states[event.pointerId].started = false;
+event.preventDefault();
+}
+function cancel(event) {
+states[event.pointerId].started = false;
+}
+</script>
+</body>
+</html>
